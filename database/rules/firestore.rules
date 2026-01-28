@@ -1,0 +1,170 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // دالة للتحقق من أن المستخدم ينتمي للشركة
+    function isCompanyMember(companyId) {
+      return request.auth != null && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.companyId == companyId;
+    }
+
+    // دالة للحصول على دور المستخدم
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    // دالة للتحقق من أن المستخدم مدير
+    function isAdmin() {
+      return getUserRole() == 'admin';
+    }
+
+    // دالة للتحقق من أن المستخدم كاشير
+    function isCashier() {
+      return getUserRole() == 'cashier';
+    }
+
+    // دالة للتحقق من أن المستخدم مندوب مبيعات
+    function isSalesRep() {
+      return getUserRole() == 'sales_rep';
+    }
+
+    // دالة للتحقق من أن المستخدم مسموح له باستخدام POS
+    function canUsePOS() {
+      return isAdmin() || isCashier();
+    }
+
+    // دالة للتحقق من أن المستخدم مسموح له باستخدام تطبيق المندوب
+    function canUseSalesRep() {
+      return isAdmin() || isSalesRep();
+    }
+
+    // مجموعة المستخدمين
+    match /users/{userId} {
+      allow read: if request.auth != null && 
+        (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // مجموعة الشركات
+    match /companies/{companyId} {
+      allow read: if request.auth != null && 
+        isCompanyMember(companyId);
+      allow write: if isAdmin();
+    }
+
+    // مجموعة المنتجات
+    match /products/{productId} {
+      allow read: if request.auth != null && 
+        isCompanyMember(resource.data.companyId);
+      allow write: if request.auth != null && 
+        isCompanyMember(request.resource.data.companyId) &&
+        (isAdmin() || isCashier());
+    }
+
+    // مجموعة العملاء
+    match /customers/{customerId} {
+      allow read: if request.auth != null && 
+        isCompanyMember(resource.data.companyId);
+      allow create: if request.auth != null && 
+        isCompanyMember(request.resource.data.companyId) &&
+        (isAdmin() || isCashier() || isSalesRep());
+      allow update: if request.auth != null && 
+        isCompanyMember(resource.data.companyId) &&
+        (isAdmin() || isCashier() || isSalesRep());
+      allow delete: if request.auth != null && 
+        isCompanyMember(resource.data.companyId) &&
+        isAdmin();
+    }
+
+    // مجموعة الموردين
+    match /suppliers/{supplierId} {
+      allow read: if request.auth != null && 
+        isCompanyMember(resource.data.companyId);
+      allow write: if request.auth != null && 
+        isCompanyMember(request.resource.data.companyId) &&
+        isAdmin();
+    }
+
+    // مجموعة المبيعات (الفواتير)
+    match /sales/{saleId} {
+      allow read: if request.auth != null && 
+        isCompanyMember(resource.data.companyId);
+      allow create: if request.auth != null && 
+        isCompanyMember(request.resource.data.companyId) &&
+        (isAdmin() || isCashier() || isSalesRep());
+      allow update: if request.auth != null && 
+        isCompanyMember(resource.data.companyId) &&
+        (isAdmin() || isCashier() || isSalesRep());
+      allow delete: if false;
+    }
+
+    // مجموعة مشتريات
+    match /purchases/{purchaseId} {
+      allow read: if request.auth != null && 
+        isCompanyMember(resource.data.companyId);
+      allow write: if request.auth != null && 
+        isCompanyMember(request.resource.data.companyId) &&
+        isAdmin();
+    }
+
+    // مجموعة الخزينة اليومية
+    match /treasury_daily/{dailyId} {
+      allow read: if request.auth != null && 
+        isCompanyMember(resource.data.companyId);
+      allow write: if request.auth != null && 
+        isCompanyMember(request.resource.data.companyId) &&
+        (isAdmin() || isCashier());
+    }
+
+    // مجموعة حركات الخزينة
+    match /treasury/{transactionId} {
+      allow read: if request.auth != null && 
+        isCompanyMember(resource.data.companyId);
+      allow write: if request.auth != null && 
+        isCompanyMember(request.resource.data.companyId) &&
+        (isAdmin() || isCashier());
+    }
+
+    // مجموعة الإعدادات
+    match /settings/{settingId} {
+      allow read: if request.auth != null && 
+        isCompanyMember(resource.data.companyId);
+      allow write: if request.auth != null && 
+        isCompanyMember(request.resource.data.companyId) &&
+        isAdmin();
+    }
+
+    // مجموعة طلبات المندوب (الطلبات المعلقة)
+    match /pending_orders/{orderId} {
+      allow read: if request.auth != null && 
+        isCompanyMember(resource.data.companyId);
+      allow create: if request.auth != null && 
+        isCompanyMember(request.resource.data.companyId) &&
+        (isAdmin() || isSalesRep());
+      allow update: if request.auth != null && 
+        isCompanyMember(resource.data.companyId) &&
+        isAdmin(); // فقط المدير يمكنه الموافقة أو الرفض
+      allow delete: if request.auth != null && 
+        isCompanyMember(resource.data.companyId) &&
+        isAdmin();
+    }
+
+    // مجموعة سجلات المخزون
+    match /inventoryLogs/{logId} {
+      allow read: if request.auth != null && 
+        isCompanyMember(resource.data.companyId);
+      allow write: if request.auth != null && 
+        isCompanyMember(request.resource.data.companyId) &&
+        (isAdmin() || isCashier());
+    }
+
+    // مجموعة عمولات المندوبين
+    match /commissions/{commissionId} {
+      allow read: if request.auth != null && 
+        (isCompanyMember(resource.data.companyId) && 
+        (request.auth.uid == resource.data.userId || isAdmin()));
+      allow write: if request.auth != null && 
+        isCompanyMember(request.resource.data.companyId) &&
+        isAdmin();
+    }
+  }
+}
