@@ -1,0 +1,64 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == 'admin';
+    }
+    
+    function belongsToCompany(companyId) {
+      return isAuthenticated() && request.auth.token.companyId == companyId;
+    }
+    
+    // Product images
+    match /products/{companyId}/{allPaths=**} {
+      allow read: if isAuthenticated();
+      allow write: if belongsToCompany(companyId);
+    }
+    
+    // User avatars
+    match /avatars/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Company logos
+    match /logos/{companyId} {
+      allow read: if isAuthenticated();
+      allow write: if belongsToCompany(companyId) || isAdmin();
+    }
+    
+    // Receipts
+    match /receipts/{companyId}/{allPaths=**} {
+      allow read: if belongsToCompany(companyId);
+      allow write: if belongsToCompany(companyId);
+    }
+    
+    // Invoices
+    match /invoices/{companyId}/{allPaths=**} {
+      allow read: if belongsToCompany(companyId);
+      allow write: if belongsToCompany(companyId);
+    }
+    
+    // Reports
+    match /reports/{companyId}/{allPaths=**} {
+      allow read: if belongsToCompany(companyId);
+      allow write: if belongsToCompany(companyId);
+    }
+    
+    // Documents
+    match /documents/{companyId}/{allPaths=**} {
+      allow read: if belongsToCompany(companyId);
+      allow write: if belongsToCompany(companyId);
+    }
+    
+    // Default deny
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

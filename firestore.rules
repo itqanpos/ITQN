@@ -1,90 +1,176 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // مستندات الشركة
-    match /companies/{companyId} {
-      allow read: if request.auth != null && 
-        (request.auth.token.companyId == companyId || request.auth.token.role == 'admin');
-      allow write: if request.auth != null && request.auth.token.role == 'admin';
-      
-      // المستخدمين داخل الشركة
-      match /users/{userId} {
-        allow read: if request.auth != null && 
-          request.auth.token.companyId == companyId;
-        allow create: if request.auth != null && 
-          request.auth.token.companyId == companyId && 
-          request.auth.token.role in ['admin', 'cashier'];
-        allow update, delete: if request.auth != null && 
-          request.auth.token.companyId == companyId && 
-          request.auth.token.role == 'admin';
-      }
-      
-      // المنتجات
-      match /products/{productId} {
-        allow read: if request.auth != null && 
-          request.auth.token.companyId == companyId;
-        allow write: if request.auth != null && 
-          request.auth.token.companyId == companyId && 
-          request.auth.token.role in ['admin', 'cashier'];
-      }
-      
-      // الطلبات
-      match /orders/{orderId} {
-        allow read: if request.auth != null && 
-          request.auth.token.companyId == companyId;
-        allow create: if request.auth != null && 
-          request.auth.token.companyId == companyId;
-        allow update: if request.auth != null && 
-          request.auth.token.companyId == companyId && 
-          (request.auth.token.role == 'admin' || 
-           (request.auth.token.role == 'sales_rep' && 
-            resource.data.salesRepId == request.auth.uid));
-      }
-      
-      // الفواتير
-      match /invoices/{invoiceId} {
-        allow read: if request.auth != null && 
-          request.auth.token.companyId == companyId;
-        allow create: if request.auth != null && 
-          request.auth.token.companyId == companyId && 
-          request.auth.token.role in ['admin', 'cashier'];
-        allow update: if request.auth != null && 
-          request.auth.token.companyId == companyId && 
-          request.auth.token.role == 'admin';
-      }
-      
-      // الخزينة
-      match /treasury/{treasuryId} {
-        allow read: if request.auth != null && 
-          request.auth.token.companyId == companyId && 
-          request.auth.token.role in ['admin', 'cashier'];
-        allow write: if request.auth != null && 
-          request.auth.token.companyId == companyId && 
-          request.auth.token.role == 'admin';
-      }
-      
-      // الحركات المالية
-      match /transactions/{transactionId} {
-        allow read: if request.auth != null && 
-          request.auth.token.companyId == companyId && 
-          request.auth.token.role in ['admin', 'cashier'];
-        allow create: if request.auth != null && 
-          request.auth.token.companyId == companyId;
-      }
-      
-      // العدادات الذرية
-      match /counters/{counterId} {
-        allow read: if request.auth != null && 
-          request.auth.token.companyId == companyId;
-        allow write: if request.auth != null && 
-          request.auth.token.companyId == companyId;
-      }
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
     }
     
-    // تحقق من أن المستخدم يملك الشركة
-    function userHasCompanyAccess(companyId) {
-      return request.auth != null && 
-        request.auth.token.companyId == companyId;
+    function isAdmin() {
+      return isAuthenticated() && request.auth.token.role == 'admin';
+    }
+    
+    function isManager() {
+      return isAuthenticated() && (request.auth.token.role == 'admin' || request.auth.token.role == 'manager');
+    }
+    
+    function isSalesRep() {
+      return isAuthenticated() && request.auth.token.role == 'sales_rep';
+    }
+    
+    function isCashier() {
+      return isAuthenticated() && request.auth.token.role == 'cashier';
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function belongsToCompany(companyId) {
+      return isAuthenticated() && request.auth.token.companyId == companyId;
+    }
+    
+    // Users Collection
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (isOwner(userId) || isAdmin() || belongsToCompany(resource.data.companyId));
+      allow create: if isAdmin();
+      allow update: if isAdmin() || isOwner(userId);
+      allow delete: if isAdmin();
+    }
+    
+    // Companies Collection
+    match /companies/{companyId} {
+      allow read: if isAuthenticated() && belongsToCompany(companyId);
+      allow create: if isAdmin();
+      allow update: if isAdmin() || (isManager() && belongsToCompany(companyId));
+      allow delete: if isAdmin();
+    }
+    
+    // Products Collection
+    match /products/{productId} {
+      allow read: if isAuthenticated() && belongsToCompany(resource.data.companyId);
+      allow create: if isManager() || isSalesRep() || isCashier();
+      allow update: if isManager() || isSalesRep() || isCashier();
+      allow delete: if isManager();
+    }
+    
+    // Categories Collection
+    match /categories/{categoryId} {
+      allow read: if isAuthenticated();
+      allow write: if isManager() || isAdmin();
+    }
+    
+    // Customers Collection
+    match /customers/{customerId} {
+      allow read: if isAuthenticated() && belongsToCompany(resource.data.companyId);
+      allow create: if isSalesRep() || isManager() || isCashier();
+      allow update: if isSalesRep() || isManager() || isCashier();
+      allow delete: if isManager();
+    }
+    
+    // Suppliers Collection
+    match /suppliers/{supplierId} {
+      allow read: if isAuthenticated() && belongsToCompany(resource.data.companyId);
+      allow write: if isManager() || isAdmin();
+    }
+    
+    // Sales/Invoices Collection
+    match /sales/{saleId} {
+      allow read: if isAuthenticated() && belongsToCompany(resource.data.companyId);
+      allow create: if isSalesRep() || isCashier() || isManager();
+      allow update: if isManager() || (isSalesRep() && resource.data.createdBy == request.auth.uid);
+      allow delete: if isManager();
+    }
+    
+    // Sale Items Collection
+    match /saleItems/{itemId} {
+      allow read: if isAuthenticated();
+      allow write: if isSalesRep() || isCashier() || isManager();
+    }
+    
+    // Inventory Collection
+    match /inventory/{inventoryId} {
+      allow read: if isAuthenticated() && belongsToCompany(resource.data.companyId);
+      allow write: if isManager() || isAdmin();
+    }
+    
+    // Inventory Transactions Collection
+    match /inventoryTransactions/{transactionId} {
+      allow read: if isAuthenticated() && belongsToCompany(resource.data.companyId);
+      allow write: if isManager() || isAdmin() || isSalesRep() || isCashier();
+    }
+    
+    // Purchase Orders Collection
+    match /purchaseOrders/{orderId} {
+      allow read: if isAuthenticated() && belongsToCompany(resource.data.companyId);
+      allow write: if isManager() || isAdmin();
+    }
+    
+    // Expenses Collection
+    match /expenses/{expenseId} {
+      allow read: if isAuthenticated() && belongsToCompany(resource.data.companyId);
+      allow write: if isManager() || isAdmin();
+    }
+    
+    // Payments Collection
+    match /payments/{paymentId} {
+      allow read: if isAuthenticated() && belongsToCompany(resource.data.companyId);
+      allow write: if isCashier() || isManager() || isAdmin();
+    }
+    
+    // Reports Collection
+    match /reports/{reportId} {
+      allow read: if isAuthenticated() && belongsToCompany(resource.data.companyId);
+      allow write: if isManager() || isAdmin();
+    }
+    
+    // POS Sessions Collection
+    match /posSessions/{sessionId} {
+      allow read: if isAuthenticated() && belongsToCompany(resource.data.companyId);
+      allow create: if isCashier() || isManager();
+      allow update: if isCashier() || isManager();
+      allow delete: if isManager();
+    }
+    
+    // Branches Collection
+    match /branches/{branchId} {
+      allow read: if isAuthenticated() && belongsToCompany(resource.data.companyId);
+      allow write: if isManager() || isAdmin();
+    }
+    
+    // Sales Visits Collection (for sales reps)
+    match /salesVisits/{visitId} {
+      allow read: if isAuthenticated() && belongsToCompany(resource.data.companyId);
+      allow create: if isSalesRep();
+      allow update: if isSalesRep() && resource.data.salesRepId == request.auth.uid;
+      allow delete: if isManager();
+    }
+    
+    // Notifications Collection
+    match /notifications/{notificationId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.companyId == request.auth.token.companyId);
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+    
+    // Settings Collection
+    match /settings/{settingId} {
+      allow read: if isAuthenticated() && belongsToCompany(settingId);
+      allow write: if isAdmin() || isManager();
+    }
+    
+    // Audit Logs Collection
+    match /auditLogs/{logId} {
+      allow read: if isAdmin() || isManager();
+      allow create: if isAuthenticated();
+      allow update, delete: if false;
+    }
+    
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
     }
   }
 }
