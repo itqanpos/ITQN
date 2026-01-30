@@ -1,0 +1,63 @@
+{
+  "short_name": "نظام نقاط البيع",
+  "name": "نظام إدارة نقاط البيع SaaS",
+  "description": "نظام متكامل لإدارة المبيعات والمخزون والفواتير والخزينة",
+  "lang": "ar",
+  "dir": "rtl",
+  "icons": [
+    {
+      "src": "favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "logo512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#1976d2",
+  "background_color": "#ffffff",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "categories": ["business", "productivity", "finance"],
+  "shortcuts": [
+    {
+      "name": "نقطة البيع",
+      "short_name": "POS",
+      "description": "فتح شاشة نقطة البيع",
+      "url": "/pos",
+      "icons": [{ "src": "pos-icon.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "الطلبات الجديدة",
+      "short_name": "طلبات",
+      "description": "عرض الطلبات الجديدة",
+      "url": "/orders?status=pending",
+      "icons": [{ "src": "orders-icon.png", "sizes": "96x96" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "screenshot1.png",
+      "type": "image/png",
+      "sizes": "1280x720",
+      "form_factor": "wide"
+    },
+    {
+      "src": "screenshot2.png",
+      "type": "image/png",
+      "sizes": "750x1334",
+      "form_factor": "narrow"
+    }
+  ]
+}
