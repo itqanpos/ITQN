@@ -1,0 +1,42 @@
+name: sales_rep_app
+description: تطبيق مندوب المبيعات
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  firebase_core: ^2.24.2
+  firebase_auth: ^4.16.0
+  cloud_firestore: ^4.15.0
+  firebase_storage: ^11.3.4
+  provider: ^6.1.1
+  shared_preferences: ^2.2.2
+  path_provider: ^2.1.1
+  sqflite: ^2.3.0
+  intl: ^0.19.0
+  syncfusion_flutter_pdf: ^23.2.8
+  syncfusion_flutter_datagrid: ^23.2.8
+  printing: ^5.11.2
+  open_file: ^3.3.3
+  flutter_localizations:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
+  
+  fonts:
+    - family: Cairo
+      fonts:
+        - asset: fonts/Cairo-Regular.ttf
+        - asset: fonts/Cairo-Bold.ttf
+          weight: 700
